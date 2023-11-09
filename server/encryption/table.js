@@ -26,7 +26,6 @@ function tableCreate() {
     for (let i = 0; i < amount; i++) {
         map.set(numberarray[i], newArray[i])
     }
-
     return map
 }
 

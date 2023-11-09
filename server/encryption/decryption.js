@@ -1,11 +1,11 @@
-const spBlockBitSize = 32 //величина блока в битах
+const spBlockBitSize = 16
 
 const subkeyGeneration = (key) => {
-    let lastValue = key.get(key.size - 1)
-    for (let i = 0; i < key.size - 1; i++) {
-        key.set(i, key.get(i + 1))
+    let firstValue = key.get(0)
+    for (let i = 1; i < key.size; i++) {
+        key.set(i - 1, key.get(i))
     }
-    key.set(0, lastValue)
+    key.set(key.size - 1, firstValue)
 }
 
 const addZeroesToBegin = (binaryNumber, dignitAmount) => {
@@ -16,15 +16,12 @@ const addZeroesToBegin = (binaryNumber, dignitAmount) => {
 }
 
 //Подстановка
-const sBlock = (binaryArray, roundKey) => {
+const sBlock = (binaryArray, roundKey, startIndex) => {
     //каждый пиксель заменяется по порядку другим значением
     for (let i = 0; i < binaryArray.length; i++) {
         //Двоичное значение из массива переводится в десятичное, ищется в таблице и переводится обратно в двоичное
         binaryArray[i] = roundKey.get(parseInt(binaryArray[i], 2)).toString(2)
     }
-
-    subkeyGeneration(roundKey)
-
 
     return binaryArray
 }
@@ -32,24 +29,25 @@ const sBlock = (binaryArray, roundKey) => {
 //Перестановка
 //делаем сдвиг массива
 const pBlock = (binaryArray, roundKey, startIndex) => {
-    
+
     //преобразуем все числа в одну битовую строку
     let binaryText = '' 
 
     for (let i = 0; i< binaryArray.length; i++) {
         binaryText += addZeroesToBegin(binaryArray[i].toString(2), 8)
     }
-    //сдвиг
+
     binaryArray = [...binaryText]
-    //сдвиг на количество раз, которое равно значению ключа, равному значению индекса первого пикселя % 256
-    for (let i = 0; i < roundKey.get(startIndex % 256) % spBlockBitSize; i++) {
-        binaryArray.unshift(binaryArray.pop());
-    }
+    //сдвиг на количество раз, которое равно значению ключа, равному номеру индекса первого пикселя % 256
+        for (let i = 0; i < (roundKey.get(startIndex % 256) + (startIndex / 256) % 256) % 16; i++) {
+            binaryArray.unshift(binaryArray.pop());
+        }
     
     return binaryArray
 }
 
-//на вход мы получаем массив пикселей
+//на вход мы получаем 4 байт информации, находящихся  в arrayBlock
+ //каждый элемент массива arrayBlock[] = 1 байт
 const spBlock = (arrayBlock, roundKey, startIndex) => {
     
     //создаём массив входов в S-блоки (блоки подставновки)
@@ -62,8 +60,9 @@ const spBlock = (arrayBlock, roundKey, startIndex) => {
     } 
 
     //подставляем в s-блоках значения с помощью таблицы ключей
-    entryes = sBlock(entryes, roundKey)
+    entryes = sBlock(entryes, roundKey, startIndex)
     //меняем в p-блоках значения с помощью таблицы ключей
+
     const exites = pBlock(entryes, roundKey, startIndex)
     
 
@@ -85,30 +84,28 @@ const roundStart = (roundText, roundKey, spBlockBitSize) => {
         //1)сдвигаем таблицу влево
         subkeyGeneration(roundKey)
 
-        //Проводим SP-операции
-        return spBlock(roundText, roundKey, i)
+        let newRoundText = []
+        //2)Берем по 16 бит блок изображения (2 пикселя) и проводим SP-операции
+        for (let i = 0; i < roundText.length; i = i + spBlockBitSize/8) {        
+            let spText = spBlock(roundText.slice(i, i + spBlockBitSize/8), roundKey, i)
+            newRoundText.push(...spText )
+        }
+        console.log('end round');
+
+        return newRoundText
 }
 
 
-function encryption(image, key) {
+function decryption(image, key) {
     
     let roundText = image
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
         roundText = roundStart(roundText, key, spBlockBitSize)
-        console.log('end round');
     }
     
-        // console.log(roundKey)
-        //наоборот - имеем таблицу у которой был сдвиг
-        //берем значения из таблицы и ставим их в порядке возрастания
-        //подставляем числа к которым были привязаны индексы
-        //разъединяем их на Lx и Rx
-        //Каждую часть превращаем в старую с помощью ключа MAP
-        //Объединяем получившиеся L и R
-        //сдвигаем таблицу вправо
-    console.log('Конец шифрования');
+    console.log('Конец дешифрования');
     return roundText
 }
 
-module.exports = encryption
+module.exports = decryption

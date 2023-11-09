@@ -1,5 +1,4 @@
-
-const spBlockBitSize = 16
+const spBlockBitSize = 24
 
 const subkeyGeneration = (key) => {
     let firstValue = key.get(0)
@@ -17,7 +16,7 @@ const addZeroesToBegin = (binaryNumber, dignitAmount) => {
 }
 
 //Подстановка
-const sBlock = (binaryArray, roundKey, startIndex) => {
+const sBlock = (binaryArray, roundKey) => {
     //каждый пиксель заменяется по порядку другим значением
     for (let i = 0; i < binaryArray.length; i++) {
         //Двоичное значение из массива переводится в десятичное, ищется в таблице и переводится обратно в двоичное
@@ -30,7 +29,7 @@ const sBlock = (binaryArray, roundKey, startIndex) => {
 //Перестановка
 //делаем сдвиг массива
 const pBlock = (binaryArray, roundKey, startIndex) => {
-
+    
     //преобразуем все числа в одну битовую строку
     let binaryText = '' 
 
@@ -39,10 +38,17 @@ const pBlock = (binaryArray, roundKey, startIndex) => {
     }
 
     binaryArray = [...binaryText]
+    if (startIndex === 0) {
+        console.log(binaryArray);
+    } 
     //сдвиг на количество раз, которое равно значению ключа, равному номеру индекса первого пикселя % 256
-        for (let i = 0; i < (roundKey.get(startIndex % 256) + (startIndex / 256) % 256) % 16; i++) {
+        for (let i = 0; i < (roundKey.get(startIndex % 256) + (startIndex / 256) % 256) % spBlockBitSize; i++) {
             binaryArray.unshift(binaryArray.pop());
         }
+    
+    if (startIndex === 0) {
+        console.log(binaryArray);
+    }     
     
     return binaryArray
 }
@@ -61,7 +67,7 @@ const spBlock = (arrayBlock, roundKey, startIndex) => {
     } 
 
     //подставляем в s-блоках значения с помощью таблицы ключей
-    entryes = sBlock(entryes, roundKey, startIndex)
+    entryes = sBlock(entryes, roundKey)
     //меняем в p-блоках значения с помощью таблицы ключей
 
     const exites = pBlock(entryes, roundKey, startIndex)
@@ -78,11 +84,6 @@ const spBlock = (arrayBlock, roundKey, startIndex) => {
     } 
 
     return newBlockArray
-    // const exites = pBlock(entryes, roundKey, startIndex)
-
-    
-
-    // return exites
 }
 
 const roundStart = (roundText, roundKey, spBlockBitSize) => {
@@ -91,7 +92,7 @@ const roundStart = (roundText, roundKey, spBlockBitSize) => {
         subkeyGeneration(roundKey)
 
         let newRoundText = []
-        //2)Берем по 32 бит блок изображения (4 пикселя) и проводим SP-операции
+        //2)Берем по 16 бит блок изображения (2 пикселя) и проводим SP-операции
         for (let i = 0; i < roundText.length; i = i + spBlockBitSize/8) {        
             let spText = spBlock(roundText.slice(i, i + spBlockBitSize/8), roundKey, i)
             newRoundText.push(...spText )
@@ -104,23 +105,12 @@ const roundStart = (roundText, roundKey, spBlockBitSize) => {
 
 function encryption(image, key) {
     
-     //величина блока в битах
-    
     let roundText = image
 
     for (let i = 0; i < 3; i++) {
         roundText = roundStart(roundText, key, spBlockBitSize)
     }
     
-    console.log(roundText);
-        // console.log(roundKey)
-        //наоборот - имеем таблицу у которой был сдвиг
-        //берем значения из таблицы и ставим их в порядке возрастания
-        //подставляем числа к которым были привязаны индексы
-        //разъединяем их на Lx и Rx
-        //Каждую часть превращаем в старую с помощью ключа MAP
-        //Объединяем получившиеся L и R
-        //сдвигаем таблицу вправо
     console.log('Конец шифрования');
     return roundText
 }
